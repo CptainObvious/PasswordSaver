@@ -20,6 +20,7 @@ import javax.swing.UIManager;
 import javax.swing.UnsupportedLookAndFeelException;
 
 import com.obvious.Util.PasswordGenerator;
+import com.obvious.Util.StringUtils;
 import com.obvious.main.Password;
 
 import net.proteanit.sql.DbUtils;
@@ -258,7 +259,7 @@ public class Fenetre extends javax.swing.JFrame {
      */
     private void Update_table(){
         try{
-            String sql = "SELECT * FROM password";
+            String sql = "SELECT id,url FROM password";
             Connection conn = Password.getConn();
             PreparedStatement p = conn.prepareStatement(sql);
             ResultSet rs = p.executeQuery();
@@ -279,15 +280,15 @@ public class Fenetre extends javax.swing.JFrame {
         String erreur = "\n";
         boolean erreurbool = false;
         if(empty(siteurl)){
-            erreur += "Le site ne doit pas Ãªtre nul \n";
+            erreur += "Le site ne doit pas être nul \n";
             erreurbool = true;
         }
         if(empty(usernamecontent)){
-            erreur+="L'utilisateur ne doit pas Ãªtre nul\n";
+            erreur+="L'utilisateur ne doit pas être nul\n";
             erreurbool = true;
         }
         if(empty(passwordcontent)){
-            erreur+="Le mot de passe ne doit pas Ãªtre nul";
+            erreur+="Le mot de passe ne doit pas être nul";
             erreurbool = true;
         }
         if(erreurbool){
@@ -297,13 +298,13 @@ public class Fenetre extends javax.swing.JFrame {
         Connection conn = Password.getConn();
             try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
                 pstmt.setString(1, siteurl);
-                pstmt.setString(2, usernamecontent);
-                pstmt.setString(3, passwordcontent);
+                pstmt.setString(2, StringUtils.encrypt(usernamecontent));
+                pstmt.setString(3, StringUtils.encrypt(passwordcontent));
                 pstmt.executeUpdate();
                 site.setText("");
                 username.setText("");
                 password.setText("");
-                JOptionPane.showMessageDialog(null, "Ajout rÃ©ussi", "InfoBox: Information", JOptionPane.INFORMATION_MESSAGE);
+                JOptionPane.showMessageDialog(null, "Ajout réussi", "InfoBox: Information", JOptionPane.INFORMATION_MESSAGE);
                 Update_table();
             } catch (SQLException ex) {
             JOptionPane.showMessageDialog(null, "Ajout Fail : "+ex.getMessage(), "InfoBox: Erreur", JOptionPane.ERROR_MESSAGE);
@@ -365,14 +366,22 @@ public class Fenetre extends javax.swing.JFrame {
     private void tableauMouseClicked(java.awt.event.MouseEvent evt) {
         int row = tableau.getSelectedRow();
         id = tableau.getModel().getValueAt(row, 0).toString();
-        site.setText(tableau.getModel().getValueAt(row, 1).toString());
-        username.setText(tableau.getModel().getValueAt(row, 2).toString());
-        password.setText(tableau.getModel().getValueAt(row, 3).toString());
+        try {
+        	String sql = "SELECT * FROM password WHERE id = '"+id+"'";
+            PreparedStatement p = Password.getConn().prepareStatement(sql);
+            ResultSet rs = p.executeQuery();
+           site.setText(rs.getString(2));
+           username.setText(StringUtils.decrypt(rs.getString(3)));
+           password.setText(StringUtils.decrypt(rs.getString(4)));
+           rs.close();
+        } catch(SQLException e){
+        	Logger.getLogger(Fenetre.class.getName()).log(Level.SEVERE, null, e);
+        }
     }
     private void searchKeyTyped(java.awt.event.KeyEvent evt) {
         try {
             String recherche = search.getText();
-            String sql = "SELECT * FROM password WHERE url LIKE '%"+recherche+"%'";
+            String sql = "SELECT id,url FROM password WHERE url LIKE '%"+recherche+"%'";
             PreparedStatement p = Password.getConn().prepareStatement(sql);
             ResultSet rs = p.executeQuery();
             Search_Table(rs);
@@ -404,8 +413,8 @@ public class Fenetre extends javax.swing.JFrame {
             String sql = "UPDATE password SET url = ?,utilisateur = ?,mdp = ? WHERE id = ?";
             PreparedStatement p = Password.getConn().prepareStatement(sql);
             p.setString(1, sitecontent);
-            p.setString(2, usernamecontent);
-            p.setString(3, passwordcontent);
+            p.setString(2, StringUtils.encrypt(usernamecontent));
+            p.setString(3, StringUtils.encrypt(passwordcontent));
             p.setInt(4, Integer.valueOf(id));
             p.executeUpdate();
             Update_table();
